@@ -50,7 +50,7 @@ namespace GetSubtitle
             foreach (var item in FullList.Select(n => n.Language).Distinct())
             {
                 LanguageList[langIndex] = item;
-                Console.WriteLine($"{langIndex + 1} \t {item}");
+                Console.WriteLine($"{langIndex} \t {item}");
                 langIndex ++;
             }
 
