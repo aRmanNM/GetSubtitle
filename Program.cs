@@ -8,29 +8,81 @@ using System.Net;
 namespace GetSubtitle
 {
     class Program
-    {     
-        public static string CleanStr(string str)
+    {
+        static string CleanStr(string str)
         {
-            str = Regex.Replace(str, @"\t|\n|\r", "");
-            return str;
+            return Regex.Replace(str, @"\t|\n|\r", "");            
         }   
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
-            Console.WriteLine("Get subtitle from Subscene.com");
-            Console.Write("Enter Movie Title: ");
-            string movieName;
-            movieName = Console.ReadLine().Trim().Replace(' ', '-');
+            int                 index;
+            string              query;
+            string              url;
+            HtmlWeb             web;
+            HtmlDocument        doc;
+            HtmlNodeCollection  nodes;
+            List<Movie>         movies = new List<Movie>();
+            List<Subtitle>      FullList = new List<Subtitle>();
+            string[]            LanguageList = new string[100];
+            Subtitle[]          FilteredSubtitles = new Subtitle[500];
 
-            string html = @"https://subscene.com/subtitles/" + movieName;
-            HtmlWeb web = new HtmlWeb();                        
-            var htmlDoc = web.Load(html);
+            Console.WriteLine("Get subtitle from Subscene.com");
+            Console.Write("Search title: ");            
+            query = Console.ReadLine().Trim().Replace(' ', '-');            
+
+            url = $"https://subscene.com/subtitles/searchbytitle?query={query}";
+            web = new HtmlWeb();
+
+            try
+            {
+                doc = web.Load(url);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                return -1;
+            }
+
+            nodes = doc.DocumentNode.SelectNodes("//*[@id=\"left\"]/div/div"); 
             
-            var nodes = htmlDoc.DocumentNode.SelectNodes(@"/html/body/div[1]/div[2]/div[4]/table/tbody/tr/td/a");
+            index = 0;
+            foreach (var ul in nodes.Elements("ul"))
+            {
+                foreach (var li in ul.Elements("li"))
+                {                       
+                    movies.Add(new Movie(){
+                        id      = index,
+                        title   = CleanStr(li.Elements("div").ElementAt(0).InnerText),
+                        link    = CleanStr(li.Elements("div").ElementAt(0).Element("a").Attributes["href"].Value)
+                    });
+
+                    index ++;
+                }
+            }
+
+            Console.WriteLine("-------------");
+            foreach (var item in movies)
+            {
+                System.Console.WriteLine($"{item.id}\t{item.title}");
+            }
             
-            var FullList = new List<Subtitle>();
-            string[] LanguageList = new string[100];
-            Subtitle[] FilteredSubtitles = new Subtitle[500];
-            
+            Console.Write("Select Title Index: ");
+            index = int.Parse(Console.ReadLine());
+
+            url = $"https://subscene.com{movies.First(n => n.id == index).link}";            
+
+            try
+            {
+                doc = web.Load(url);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                return -1;
+            }                       
+                        
+            nodes = doc.DocumentNode.SelectNodes(@"/html/body/div[1]/div[2]/div[4]/table/tbody/tr/td/a");
+                        
             foreach (var item in nodes)
             {                
                 if(item.Elements("span").Count() >= 2)
@@ -70,9 +122,9 @@ namespace GetSubtitle
             Console.Write("Select Subtitle Index: ");
             subIndex = int.Parse(Console.ReadLine());
 
-            html = "https://subscene.com" + FilteredSubtitles[subIndex].Link;
-            htmlDoc = web.Load(html);
-            var node = htmlDoc.DocumentNode.SelectSingleNode(@"/html/body/div[1]/div[2]/div[2]/div[2]/div[2]/ul/li[4]/div/a");
+            url = "https://subscene.com" + FilteredSubtitles[subIndex].Link;
+            doc = web.Load(url);
+            var node = doc.DocumentNode.SelectSingleNode(@"/html/body/div[1]/div[2]/div[2]/div[2]/div[2]/ul/li[4]/div/a");
             string downloadLink = "https://subscene.com" + node.Attributes["href"].Value;
 
             using (var client = new WebClient())
@@ -80,13 +132,15 @@ namespace GetSubtitle
                 try
                 {
                     client.DownloadFile(downloadLink, FilteredSubtitles[subIndex].BodyText);
-                    Console.WriteLine("Done!");
+                    Console.WriteLine("Done!");                    
                 }
                 catch (System.Exception)
                 {
                     Console.WriteLine("Couldn't do it!");
+                    return -1;
                 }
                 
+                return 1;
             }            
 
         }
