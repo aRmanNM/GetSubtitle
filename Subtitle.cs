@@ -2,9 +2,9 @@ namespace GetSubtitle
 {
     public class Subtitle
     {
-        public string Language { get; set; }
-        public string BodyText { get; set; }
-        public string Link { get; set; }
+        public string lang { get; set; }
+        public string title { get; set; }
+        public string link { get; set; }
     }
 
 }

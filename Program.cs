@@ -18,10 +18,11 @@ namespace GetSubtitle
             HtmlDocument        doc;
             HtmlNode            node;
             HtmlNodeCollection  nodes;
-            List<Movie>         movies = new List<Movie>();
-            List<Subtitle>      FullList = new List<Subtitle>();
-            string[]            LanguageList = new string[100]; // NOT GOOD
-            Subtitle[]          FilteredSubtitles = new Subtitle[500]; // NOT GOOD
+            List<Movie>         movies      = new List<Movie>();
+            List<Subtitle>      full        = new List<Subtitle>();
+            List<Subtitle>      filtered    = new List<Subtitle>();
+            List<string>        langs       = new List<string>();
+            
 
             // SEARCH BASED ON
             // MOVIE TITLE
@@ -93,22 +94,23 @@ namespace GetSubtitle
             {                
                 if(item.Elements("span").Count() >= 2)
                 {                    
-                    FullList.Add(
+                    full.Add(
                         new Subtitle() {                            
-                            Language = CleanStr(item.Elements("span").ElementAt(0).InnerText),                            
-                            BodyText = CleanStr(item.Elements("span").ElementAt(1).InnerText),
-                            Link = CleanStr(item.Attributes["href"].Value)
+                            lang = CleanStr(item.Elements("span").ElementAt(0).InnerText),                            
+                            title = CleanStr(item.Elements("span").ElementAt(1).InnerText),
+                            link = CleanStr(item.Attributes["href"].Value)
                         }
                     );
                 }                        
             }
-
-            index = 0;
+                                    
+            langs.AddRange(full.Select(n => n.lang).Distinct()); 
+            
             Console.WriteLine("-------------");
-            foreach (var item in FullList.Select(n => n.Language).Distinct())
+            index = 0;
+            foreach (var item in langs)
             {
-                LanguageList[index] = item;
-                Console.WriteLine($"{index} \t {item}");
+                Console.WriteLine($"{index}\t{item}");
                 index ++;
             }
 
@@ -118,19 +120,20 @@ namespace GetSubtitle
             // SHOW SUTITLES
             // FILTERED BASED ON LANGUAGE
 
-            index = 0;
+            filtered.AddRange(full.Where(n => n.lang == langs[index]));
+
             Console.WriteLine("-------------");
-            foreach (var item in FullList.Where(n => n.Language == LanguageList[index]))
+            index = 0;
+            foreach (var item in filtered)
             {
-                FilteredSubtitles[index] = item;
-                Console.WriteLine($"{index} \t {item.BodyText}");
+                Console.WriteLine($"{index}\t{item.title}");
                 index ++;
             }
             
             Console.Write("Select Subtitle Index: ");
             index = int.Parse(Console.ReadLine()); // NEEDS EVALUATION
 
-            url = "https://subscene.com" + FilteredSubtitles[index].Link; // SUBTITLE PAGE
+            url = "https://subscene.com" + filtered[index].link; // SUBTITLE PAGE
 
             try
             {
@@ -152,7 +155,7 @@ namespace GetSubtitle
             {
                 try
                 {
-                    client.DownloadFile(url, FilteredSubtitles[index].BodyText);
+                    client.DownloadFile(url, filtered[index].title);
                     Console.WriteLine("Done!");                    
                 }
                 catch (System.Exception)
