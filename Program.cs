@@ -8,11 +8,7 @@ using System.Net;
 namespace GetSubtitle
 {
     class Program
-    {
-        static string CleanStr(string str)
-        {
-            return Regex.Replace(str, @"\t|\n|\r", "");            
-        }   
+    {        
         static int Main(string[] args)
         {
             int                 index;
@@ -20,17 +16,21 @@ namespace GetSubtitle
             string              url;
             HtmlWeb             web;
             HtmlDocument        doc;
+            HtmlNode            node;
             HtmlNodeCollection  nodes;
             List<Movie>         movies = new List<Movie>();
             List<Subtitle>      FullList = new List<Subtitle>();
-            string[]            LanguageList = new string[100];
-            Subtitle[]          FilteredSubtitles = new Subtitle[500];
+            string[]            LanguageList = new string[100]; // NOT GOOD
+            Subtitle[]          FilteredSubtitles = new Subtitle[500]; // NOT GOOD
+
+            // SEARCH BASED ON
+            // MOVIE TITLE
 
             Console.WriteLine("Get subtitle from Subscene.com");
             Console.Write("Search title: ");            
-            query = Console.ReadLine().Trim().Replace(' ', '-');            
+            query = Console.ReadLine().Trim().Replace(' ', '-');  // NEEDS EVALUATION
 
-            url = $"https://subscene.com/subtitles/searchbytitle?query={query}";
+            url = $"https://subscene.com/subtitles/searchbytitle?query={query}"; // SEARCH URL
             web = new HtmlWeb();
 
             try
@@ -43,8 +43,11 @@ namespace GetSubtitle
                 return -1;
             }
 
-            nodes = doc.DocumentNode.SelectNodes("//*[@id=\"left\"]/div/div"); 
+            nodes = doc.DocumentNode.SelectNodes("//*[@id=\"left\"]/div/div"); // SEARCH RESULT SECTION
             
+            // FILL
+            // SEARCH RESULT LIST
+
             index = 0;
             foreach (var ul in nodes.Elements("ul"))
             {
@@ -63,13 +66,13 @@ namespace GetSubtitle
             Console.WriteLine("-------------");
             foreach (var item in movies)
             {
-                System.Console.WriteLine($"{item.id}\t{item.title}");
+                Console.WriteLine($"{item.id}\t{item.title}");
             }
             
             Console.Write("Select Title Index: ");
-            index = int.Parse(Console.ReadLine());
+            index = int.Parse(Console.ReadLine()); // NEEDS EVALUATION
 
-            url = $"https://subscene.com{movies.First(n => n.id == index).link}";            
+            url = $"https://subscene.com{movies.First(n => n.id == index).link}"; // LINK OF MOVIE PAGE
 
             try
             {
@@ -81,8 +84,11 @@ namespace GetSubtitle
                 return -1;
             }                       
                         
-            nodes = doc.DocumentNode.SelectNodes(@"/html/body/div[1]/div[2]/div[4]/table/tbody/tr/td/a");
-                        
+            nodes = doc.DocumentNode.SelectNodes(@"/html/body/div[1]/div[2]/div[4]/table/tbody/tr/td/a"); // SUBTITLES SECTION
+
+            // FILL LIST OF
+            // ALL SUBTITLES
+
             foreach (var item in nodes)
             {                
                 if(item.Elements("span").Count() >= 2)
@@ -97,41 +103,56 @@ namespace GetSubtitle
                 }                        
             }
 
-            int langIndex = 0;
+            index = 0;
             Console.WriteLine("-------------");
             foreach (var item in FullList.Select(n => n.Language).Distinct())
             {
-                LanguageList[langIndex] = item;
-                Console.WriteLine($"{langIndex} \t {item}");
-                langIndex ++;
+                LanguageList[index] = item;
+                Console.WriteLine($"{index} \t {item}");
+                index ++;
             }
 
             Console.Write("Select language index: ");
-            langIndex = int.Parse(Console.ReadLine());
+            index = int.Parse(Console.ReadLine()); // NEEDS EVALUATION
+            
+            // SHOW SUTITLES
+            // FILTERED BASED ON LANGUAGE
 
-
-            int subIndex = 0;
+            index = 0;
             Console.WriteLine("-------------");
-            foreach (var item in FullList.Where(n => n.Language == LanguageList[langIndex]))
+            foreach (var item in FullList.Where(n => n.Language == LanguageList[index]))
             {
-                FilteredSubtitles[subIndex] = item;
-                Console.WriteLine($"{subIndex} \t {item.BodyText}");
-                subIndex ++;
+                FilteredSubtitles[index] = item;
+                Console.WriteLine($"{index} \t {item.BodyText}");
+                index ++;
             }
             
             Console.Write("Select Subtitle Index: ");
-            subIndex = int.Parse(Console.ReadLine());
+            index = int.Parse(Console.ReadLine()); // NEEDS EVALUATION
 
-            url = "https://subscene.com" + FilteredSubtitles[subIndex].Link;
-            doc = web.Load(url);
-            var node = doc.DocumentNode.SelectSingleNode(@"/html/body/div[1]/div[2]/div[2]/div[2]/div[2]/ul/li[4]/div/a");
-            string downloadLink = "https://subscene.com" + node.Attributes["href"].Value;
+            url = "https://subscene.com" + FilteredSubtitles[index].Link; // SUBTITLE PAGE
+
+            try
+            {
+                doc = web.Load(url);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                return -1;
+            }      
+
+            // GETTING THE DOWNLOAD LINK
+            // AND DOWNLOAD
+
+            node = doc.DocumentNode.SelectSingleNode(@"/html/body/div[1]/div[2]/div[2]/div[2]/div[2]/ul/li[4]/div/a"); // DOWNLOAD LINK SECTION
+            url = "https://subscene.com" + node.Attributes["href"].Value; // DOWNLOAD URL
 
             using (var client = new WebClient())
             {
                 try
                 {
-                    client.DownloadFile(downloadLink, FilteredSubtitles[subIndex].BodyText);
+                    client.DownloadFile(url, FilteredSubtitles[index].BodyText);
                     Console.WriteLine("Done!");                    
                 }
                 catch (System.Exception)
@@ -144,5 +165,10 @@ namespace GetSubtitle
             }            
 
         }
+
+        static string CleanStr(string str)
+        {
+            return Regex.Replace(str, @"\t|\n|\r", "");
+        }   
     }
 }
