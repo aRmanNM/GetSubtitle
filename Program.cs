@@ -4,44 +4,61 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Net;
-using GetSubtitle.Models;
+using System.IO;
 
 namespace GetSubtitle
 {
-    class Program
+    static class Program
     {
         static void Main(string[] args)
         {
+            string title;
+
             Console.WriteLine("#################################");
             Console.WriteLine("## Subscene.com Sub Downloader ##");
+            Console.WriteLine("## By: ArmanNM ##################");
             Console.WriteLine("#################################");
-            Console.Write("Search Movie Title: ");
-            string title = Console.ReadLine().Trim().Replace(' ', '-');
 
-            var movies = SearchMovieByTitle(title);
-            PopulateList<Movie>(movies);
-            var index = GeneratePrompt("Movie");
+            if (args.Length < 2)
+            {
+                Console.Write("Enter Movie Title: ");
+                title = Console.ReadLine().CleanString();
+            }
+            else
+            {
+                title = args[1].CleanString();
+            }
 
-            var subs = GetMovieSubtitles(movies, int.Parse(index));
+            try
+            {
+                var movies = SearchMovieByTitle(title);
+                PopulateList<Movie>(movies);
+                var index = GeneratePrompt("Movie");
 
-            var languages = ExtractLanguages(subs);
-            PopulateList<BaseClass>(languages);
-            index = GeneratePrompt("Language");
+                var subs = GetMovieSubtitles(movies, int.Parse(index));
 
-            subs = GetFilteredSubtitles(subs, languages.FirstOrDefault(l => l.Id == int.Parse(index)).Title);
-            PopulateList<Subtitle>(subs);
-            index = GeneratePrompt("Subtitle");
+                var languages = ExtractLanguages(subs);
+                PopulateList<BaseClass>(languages);
+                index = GeneratePrompt("Language");
 
-            DownloadSubtitle(subs, int.Parse(index));
+                subs = GetFilteredSubtitles(subs, languages.FirstOrDefault(l => l.Id == int.Parse(index)).Title);
+                PopulateList<Subtitle>(subs);
+                index = GeneratePrompt("Subtitle");
+
+                DownloadSubtitle(subs, int.Parse(index));
+
+                Console.WriteLine("Done!");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Couldnt do that! \t" + e.Message);
+                FriendlyClose();
+            }
         }
 
-        //
-        // TODO: relocate these methods somewhere else
-        //
-
-        static string CleanStr(string str)
+        static string CleanString(this String str)
         {
-            return Regex.Replace(str, @"\t|\n|\r", "");
+            return Regex.Replace(str.Trim(), @"\t|\n|\r", "");
         }
 
         static List<Movie> SearchMovieByTitle(string title)
@@ -55,10 +72,11 @@ namespace GetSubtitle
             {
                 foreach (var li in ul.Elements("li"))
                 {
-                    movies.Add(new Movie(){
+                    movies.Add(new Movie()
+                    {
                         Id = counter,
-                        Title = CleanStr(li.Elements("div").ElementAt(0).InnerText),
-                        Url = CleanStr(li.Elements("div").ElementAt(0).Element("a").Attributes["href"].Value)
+                        Title = li.Elements("div").ElementAt(0).InnerText.CleanString(),
+                        Url = li.Elements("div").ElementAt(0).Element("a").Attributes["href"].Value.CleanString()
                     });
 
                     counter++;
@@ -77,14 +95,15 @@ namespace GetSubtitle
             int counter = 0;
             foreach (var item in nodes)
             {
-                if(item.Elements("span").Count() >= 2)
+                if (item.Elements("span").Count() >= 2)
                 {
                     subs.Add(
-                        new Subtitle() {
+                        new Subtitle()
+                        {
                             Id = counter,
-                            Language = CleanStr(item.Elements("span").ElementAt(0).InnerText),
-                            Title = CleanStr(item.Elements("span").ElementAt(1).InnerText),
-                            Url = CleanStr(item.Attributes["href"].Value)
+                            Language = item.Elements("span").ElementAt(0).InnerText.CleanString(),
+                            Title = item.Elements("span").ElementAt(1).InnerText.CleanString(),
+                            Url = item.Attributes["href"].Value.CleanString()
                         }
                     );
 
@@ -102,7 +121,8 @@ namespace GetSubtitle
             int counter = 0;
             foreach (var item in distintSubLanguages)
             {
-                languages.Add(new BaseClass {
+                languages.Add(new BaseClass
+                {
                     Id = counter,
                     Title = item
                 });
@@ -125,15 +145,7 @@ namespace GetSubtitle
             url = "https://subscene.com" + node.Attributes["href"].Value;
             using (var client = new WebClient())
             {
-                try
-                {
-                    client.DownloadFile(url, subtitles.First(s => s.Id == subIndex).Title + ".zip");
-                    Console.WriteLine("Done!");
-                }
-                catch (System.Exception)
-                {
-                    Console.WriteLine("Couldn't do it!");
-                }
+                client.DownloadFile(url, $"{Environment.CurrentDirectory}{Path.DirectorySeparatorChar}{subtitles.First(s => s.Id == subIndex).Title.Trim()}.zip");
             }
         }
 
@@ -155,14 +167,46 @@ namespace GetSubtitle
             foreach (var item in listOfItems)
             {
                 Console.WriteLine($"{item.Id}\t{item.Title}");
-                index ++;
+                index++;
             }
         }
 
-        static HtmlDocument GetHtmlDocument(string url) {
+        static HtmlDocument GetHtmlDocument(string url)
+        {
             var web = new HtmlWeb();
             return web.Load(url);
         }
 
+        static void FriendlyClose()
+        {
+            Environment.ExitCode = -1;
+            if (Environment.UserInteractive)
+            {
+                Console.WriteLine("Press <Enter> to close");
+                _ = Console.ReadLine();
+            }
+        }
+
+    }
+
+    //
+    // MODELS
+    //
+
+    public class BaseClass
+    {
+        public int Id { get; set; }
+        public string Title { get; set; }
+    }
+
+    public class Movie : BaseClass
+    {
+        public string Url { get; set; }
+    }
+
+    public class Subtitle : BaseClass
+    {
+        public string Language { get; set; }
+        public string Url { get; set; }
     }
 }
