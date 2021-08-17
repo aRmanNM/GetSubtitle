@@ -145,6 +145,7 @@ namespace GetSubtitle
             url = "https://subscene.com" + node.Attributes["href"].Value;
             using (var client = new WebClient())
             {
+                client.Headers.Add("User-Agent: Other");
                 client.DownloadFile(url, $"{Environment.CurrentDirectory}{Path.DirectorySeparatorChar}{subtitles.First(s => s.Id == subIndex).Title.Trim()}.zip");
             }
         }
